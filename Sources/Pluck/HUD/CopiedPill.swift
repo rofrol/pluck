@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The "Copied 32 chars: first words of the text…" HUD — a static, dark
-/// Liquid Glass capsule at the bottom right of the screen (the user,
+/// capsule at the bottom right of the screen (the user,
 /// 2026-11-03: larger text, a more visible pill, nearer the right edge,
 /// with a preview). Panel alpha fades it in and out (see `HUDPresenter`).
 struct CopiedPill: View {
@@ -42,7 +42,9 @@ struct CopiedPill: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
         .foregroundStyle(.white)
-        .glassEffect(.regular.tint(.black.opacity(0.6)), in: .capsule)
+        // A solid dark fill, not glass: tinted glass over a light window
+        // turned light grey and hid the white text (the user, 2026-11-03).
+        .background(Capsule().fill(.black.opacity(0.85)))
         .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
         .fixedSize()
     }
