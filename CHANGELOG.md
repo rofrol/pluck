@@ -7,6 +7,13 @@ All notable changes to Pluck are documented here. Pluck follows
 
 ### Added
 
+- Copy counter, the default: the pill shows "Copied N characters" for
+  every text copy any app makes (Cmd+C included), from the pasteboard's
+  change count checked every 0.25 s; concealed, transient and generated
+  items are never read. The gestures are off by default (Preferences →
+  Gesture → Copy with gestures), and with them off Pluck asks for no
+  permissions.
+
 - Copy on select (on by default, toggle in Preferences → Gesture):
   finishing a selection with a drag or a double/triple click copies it.
   The gesture counts only if it started on text (an AX hit-test at the

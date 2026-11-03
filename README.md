@@ -52,6 +52,20 @@ The first launch walks you through two system permissions:
 - **Input Monitoring** — so Pluck can observe (not intercept) your mouse
   events.
 
+## Copy counter (this fork, the default)
+
+Out of the box this fork copies nothing by itself. Copy as usual (Cmd+C,
+Edit → Copy); the app does the copying, and Pluck shows "Copied 42
+characters ✓" when text lands on the clipboard. macOS sends nothing when
+the clipboard changes, so Pluck compares the pasteboard's change count
+every 0.25 s and reads the text only when it moved. Items marked
+concealed (passwords), transient or auto-generated per nspasteboard.org
+are never read. This mode needs no permissions.
+
+The gestures below (copy on select, hold to copy) are off; turn them on
+in Preferences → Gesture → **Copy with gestures** (they need
+Accessibility and Input Monitoring).
+
 ## Copy on select (this fork)
 
 With **Copy on select** on (the default, Preferences → Gesture), you do

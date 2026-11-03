@@ -10,7 +10,17 @@ final class AppShell: NSObject, NSWindowDelegate {
     let hud: HUDPresenter
     let onboardingState: OnboardingState
     let accessibilityEnabler: AccessibilityEnabler
+    let clipboardWatcher: ClipboardWatcher
     private var onboardingWindow: NSWindow?
+    private var defaultsObserver: NSObjectProtocol?
+
+    /// Off by default (the user, 2026-11-03: only the pill on Cmd+C). With
+    /// gestures off Pluck needs neither Accessibility nor Input Monitoring:
+    /// it only watches the clipboard.
+    static let gesturesEnabledKey = "pluck.gesturesEnabled"
+    var gesturesEnabled: Bool {
+        UserDefaults.standard.bool(forKey: Self.gesturesEnabledKey)
+    }
 
     var isPaused: Bool {
         get { engine.isPaused }
@@ -27,6 +37,12 @@ final class AppShell: NSObject, NSWindowDelegate {
         self.onboardingState = OnboardingState()
         self.accessibilityEnabler = AccessibilityEnabler(blocklist: blocklist,
                                                          isPaused: { engine.isPaused })
+        let hud = self.hud
+        self.clipboardWatcher = ClipboardWatcher(
+            isPaused: { engine.isPaused },
+            onCopy: { count in
+                hud.show(near: CGEvent(source: nil)?.location ?? .zero, characterCount: count)
+            })
         super.init()
 
         let storedDelay = UserDefaults.standard.integer(forKey: "pluck.holdDelayMs")
@@ -71,6 +87,7 @@ final class AppShell: NSObject, NSWindowDelegate {
                   generation == self.gestureGeneration,
                   self.selectionReader.writeIfNew(text) != nil
             else { return }
+            self.clipboardWatcher.noteOwnWrite()
             self.hud.show(near: release, characterCount: text.count)
         }
     }
@@ -85,6 +102,14 @@ final class AppShell: NSObject, NSWindowDelegate {
     }
 
     func bootstrap() {
+        clipboardWatcher.start()
+        // Preferences write the gestures toggle through @AppStorage.
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applyGesturesSetting() }
+        }
+        guard gesturesEnabled else { return }
         // Additive, not exclusive: engine starts whenever permissions are
         // granted, AND onboarding opens when either permissions are missing
         // OR the user has not yet confirmed setup. This makes the common
@@ -107,6 +132,7 @@ final class AppShell: NSObject, NSWindowDelegate {
                 self.engine.holdDelayMs = currentDelay
             }
             if let outcome = await self.selectionReader.read(at: point) {
+                self.clipboardWatcher.noteOwnWrite()
                 self.hud.show(near: point, characterCount: outcome.text.count)
             }
         }
@@ -149,7 +175,16 @@ final class AppShell: NSObject, NSWindowDelegate {
         }
     }
 
+    private func applyGesturesSetting() {
+        if gesturesEnabled, !engine.isRunning {
+            startEngineIfPossible()
+        } else if !gesturesEnabled, engine.isRunning {
+            engine.stop()
+        }
+    }
+
     func startEngineIfPossible() {
+        guard gesturesEnabled else { return }
         guard PermissionChecks.accessibilityTrusted(),
               PermissionChecks.inputMonitoringGranted() else {
             showOnboarding()

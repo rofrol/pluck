@@ -36,9 +36,15 @@ struct PrefsContent: View {
 private struct GeneralTab: View {
     @AppStorage("pluck.holdDelayMs") private var holdDelayMs: Int = 150
     @AppStorage(AppShell.copyOnSelectKey) private var copyOnSelect: Bool = true
+    @AppStorage(AppShell.gesturesEnabledKey) private var gesturesEnabled: Bool = false
 
     var body: some View {
         PrefsSection("Gesture") {
+            PrefsRow("Copy with gestures",
+                     description: "Off: Pluck only shows how many characters an app's Copy put on the clipboard. On: Pluck also copies by itself, which needs Accessibility and Input Monitoring.") {
+                Toggle("", isOn: $gesturesEnabled)
+                    .labelsHidden()
+            }
             PrefsRow("Copy on select",
                      description: "Copy text as soon as you finish selecting it with a drag or a double click.") {
                 Toggle("", isOn: $copyOnSelect)
