@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The "Copied 32 chars: first words of the text…" HUD — a static, white
-/// capsule at the bottom right of the screen (the user,
+/// The "Copied 32 chars" HUD, the first words of the text on a second
+/// line — a static white box at the bottom right of the screen (the user,
 /// 2026-11-03: larger text, a more visible pill, nearer the right edge,
 /// with a preview). Panel alpha fades it in and out (see `HUDPresenter`).
 struct CopiedPill: View {
@@ -10,12 +10,12 @@ struct CopiedPill: View {
     /// Longest preview, in characters, before the ellipsis.
     static let previewLength = 40
 
-    /// "Copied 32 chars:" — characters as a person counts them (grapheme
+    /// "Copied 32 chars" — characters as a person counts them (grapheme
     /// clusters), so an emoji with a skin-tone modifier counts as one.
     /// Pure, so it is unit-tested apart from SwiftUI.
     static func label(for text: String) -> String {
         let count = text.count
-        return "Copied \(count.formatted()) \(count == 1 ? "char" : "chars"):"
+        return "Copied \(count.formatted()) \(count == 1 ? "char" : "chars")"
     }
 
     /// The text on one line (runs of whitespace and line breaks become one
@@ -28,27 +28,31 @@ struct CopiedPill: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 17, weight: .light))
-                .foregroundStyle(Color(white: 0.45))
-            Text(Self.label(for: text))
-                .font(.system(size: 17))
-                .monospacedDigit()
+        // Two lines in a square-cornered box (the user, 2026-11-03: "no
+        // rounded corners, and the pill takes two lines").
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 17, weight: .light))
+                    .foregroundStyle(Color(white: 0.45))
+                Text(Self.label(for: text))
+                    .font(.system(size: 17))
+                    .monospacedDigit()
+            }
             Text(Self.preview(of: text))
                 .font(.system(size: 17))
                 .opacity(0.85)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .foregroundStyle(.black)
         // A solid white fill, not glass (tinted glass over a light window
         // hid white text), with a thin black border, regular text and an
         // outline icon: the user's pick of the rendered variants,
         // 2026-11-03 ("A, without bold text; the icon is too strong").
-        .background(Capsule().fill(.white))
-        .overlay(Capsule().strokeBorder(.black, lineWidth: 1))
+        .background(Rectangle().fill(.white))
+        .overlay(Rectangle().strokeBorder(.black, lineWidth: 1))
         .fixedSize()
     }
 }
