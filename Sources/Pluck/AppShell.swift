@@ -71,7 +71,7 @@ final class AppShell: NSObject, NSWindowDelegate {
                   generation == self.gestureGeneration,
                   self.selectionReader.writeIfNew(text) != nil
             else { return }
-            self.hud.show(near: release)
+            self.hud.show(near: release, characterCount: text.count)
         }
     }
 
@@ -106,8 +106,8 @@ final class AppShell: NSObject, NSWindowDelegate {
             if currentDelay > 0, currentDelay != self.engine.holdDelayMs {
                 self.engine.holdDelayMs = currentDelay
             }
-            if await self.selectionReader.read(at: point) != nil {
-                self.hud.show(near: point)
+            if let outcome = await self.selectionReader.read(at: point) {
+                self.hud.show(near: point, characterCount: outcome.text.count)
             }
         }
     }
