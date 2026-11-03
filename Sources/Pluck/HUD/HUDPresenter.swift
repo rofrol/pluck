@@ -3,8 +3,7 @@ import SwiftUI
 
 @MainActor
 final class HUDPresenter {
-    private var panel: NSPanel?
-    private var host: NSHostingController<CopiedPill>?
+    private(set) var panel: NSPanel?
     private var dismissWork: DispatchWorkItem?
 
     private let fadeIn: TimeInterval  = 0.20
@@ -15,12 +14,19 @@ final class HUDPresenter {
     /// the pill itself sits at the bottom right of that screen.
     func show(near anchor: CGPoint, text: String) {
         let panel = ensurePanel()
-        // Resize to the new label before positioning: the count changes
-        // its width.
-        host?.rootView = CopiedPill(text: text)
-        panel.contentView?.layoutSubtreeIfNeeded()
-        let pillSize = panel.contentView?.fittingSize
-            ?? CGSize(width: 100, height: 34)
+        // A new hosting view per label, sized here and nowhere else. Swapping
+        // the root view of an NSHostingController with .preferredContentSize
+        // let the controller and setFrame both size the window, and the
+        // first pill crashed Pluck in Auto Layout ("Thread stack size
+        // exceeded", 2026-11-03, two crash reports). The view is measured
+        // with its default sizing options, which fittingSize needs, and then
+        // loses them before it joins the window, so it adds no constraints
+        // there.
+        let content = NSHostingView(rootView: CopiedPill(text: text))
+        let pillSize = content.fittingSize
+        content.sizingOptions = []
+        content.frame = NSRect(origin: .zero, size: pillSize)
+        panel.contentView = content
         let screen = NSScreen.containing(anchor) ?? NSScreen.main ?? NSScreen.screens.first
         let frame = screen?.visibleFrame ?? .zero
         let origin = HUDGeometry.panelOrigin(pillSize: pillSize, screenFrame: frame)
@@ -65,12 +71,8 @@ final class HUDPresenter {
     private func ensurePanel() -> NSPanel {
         if let panel { return panel }
 
-        let host = NSHostingController(rootView: CopiedPill(text: ""))
-        host.sizingOptions = [.preferredContentSize]
-        host.view.setFrameSize(host.view.fittingSize)
-
         let panel = ClickThroughPanel(
-            contentRect: NSRect(origin: .zero, size: host.view.fittingSize),
+            contentRect: NSRect(x: 0, y: 0, width: 100, height: 34),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -82,10 +84,8 @@ final class HUDPresenter {
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .transient, .fullScreenAuxiliary]
-        panel.contentViewController = host
 
         self.panel = panel
-        self.host = host
         return panel
     }
 }
