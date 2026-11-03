@@ -3,6 +3,18 @@
 All notable changes to Pluck are documented here. Pluck follows
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased] — fork
+
+### Added
+
+- Copy on select (on by default, toggle in Preferences → Gesture):
+  finishing a selection with a drag or a double/triple click copies it.
+  The gesture counts only if it started on text (an AX hit-test at the
+  press point), so moving a window, dragging a file or a slider, or
+  double-clicking a button copies nothing. Text already on the clipboard is not written again, so the
+  pill shows only when the clipboard really changed. The hold gesture
+  still works.
+
 ## [0.1.0] — 2026-04-19
 
 The first public release. Pluck is a free macOS 26 menu-bar utility

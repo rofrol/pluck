@@ -16,6 +16,16 @@ final class GestureEngine {
     private var holdWork: DispatchWorkItem?
 
     var onHoldThreshold: ((CGPoint) -> Void)?
+    /// Every left mouse-down, before the click is handled by the target app
+    /// (the tap sits at the head). Used to snapshot the selection.
+    var onPress: ((CGPoint) -> Void)?
+    /// Press point, release point.
+    var onSelectionEnded: ((CGPoint, CGPoint) -> Void)?
+
+    var copyOnSelect: Bool {
+        get { machine.copyOnSelect }
+        set { machine.copyOnSelect = newValue }
+    }
 
     private(set) var isRunning = false
     var isPaused = false
@@ -70,7 +80,7 @@ final class GestureEngine {
         isRunning = false
     }
 
-    fileprivate func handle(type: CGEventType, location: CGPoint) {
+    fileprivate func handle(type: CGEventType, location: CGPoint, clickCount: Int) {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             holdWork?.cancel()
@@ -82,9 +92,11 @@ final class GestureEngine {
 
         switch type {
         case .leftMouseDown:
-            apply(machine.onMouseDown(at: location))
+            // May change `copyOnSelect`, so it runs before the machine.
+            onPress?(location)
+            apply(machine.onMouseDown(at: location, clickCount: clickCount))
         case .leftMouseUp:
-            if let action = machine.onMouseUp() { apply(action) }
+            if let action = machine.onMouseUp(at: location) { apply(action) }
         case .leftMouseDragged:
             if let action = machine.onMouseDragged(to: location) { apply(action) }
         default:
@@ -108,6 +120,10 @@ final class GestureEngine {
             holdWork = nil
         case .fireCopy(let point):
             onHoldThreshold?(point)
+        case .fireSelectionCopy(let press, let release, _):
+            holdWork?.cancel()
+            holdWork = nil
+            onSelectionEnded?(press, release)
         }
     }
 
@@ -121,8 +137,9 @@ private let engineTapCallback: CGEventTapCallBack = { _, type, event, userInfo i
     if let userInfo {
         let engine = Unmanaged<GestureEngine>.fromOpaque(userInfo).takeUnretainedValue()
         let location = event.location
+        let clickCount = Int(event.getIntegerValueField(.mouseEventClickState))
         MainActor.assumeIsolated {
-            engine.handle(type: type, location: location)
+            engine.handle(type: type, location: location, clickCount: clickCount)
         }
     }
     return Unmanaged.passUnretained(event)

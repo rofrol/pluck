@@ -47,7 +47,24 @@ The first launch walks you through two system permissions:
 - **Input Monitoring** — so Pluck can observe (not intercept) your mouse
   events.
 
-## How it decides to fire
+## Copy on select (this fork)
+
+With **Copy on select** on (the default, Preferences → Gesture), you do
+not need the hold: finish a selection with a drag or a double/triple
+click and release, and the text is on your clipboard.
+
+- The gesture counts only if it started on text: Pluck asks the
+  Accessibility API what is under the press point (a text view, text
+  field or web content). Moving a window by its title bar, dragging a
+  file or a slider, or double-clicking a button copies nothing, even when
+  some text is still selected elsewhere.
+- A double/triple click copies the word or line it selected.
+- Text already on the clipboard is not written again; the pill shows only
+  when the clipboard changed.
+- Apps that do not expose their selection through Accessibility (many
+  Electron apps) are not covered, as with the hold gesture.
+
+## How it decides to fire (hold gesture)
 
 1. You mouse-down somewhere.
 2. If you drag, Pluck stays out of the way — you're selecting.

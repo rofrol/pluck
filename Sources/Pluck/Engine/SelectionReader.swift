@@ -25,6 +25,14 @@ final class SelectionReader: @unchecked Sendable {
     }
 
     func read(at screenPoint: CGPoint) async -> SelectionOutcome? {
+        guard let text = await selectedText(at: screenPoint) else { return nil }
+        pasteboard.write(text)
+        return SelectionOutcome(text: text)
+    }
+
+    /// The current non-empty selection, or nil when there is none or the
+    /// owning app is blocklisted. Does not touch the clipboard.
+    func selectedText(at screenPoint: CGPoint) async -> String? {
         // `AXUIElementCopyElementAtPosition` is synchronous and can block
         // for seconds on an unresponsive target app; run it off the main
         // run loop so a slow AX call never starves the CGEventTap.
@@ -35,7 +43,28 @@ final class SelectionReader: @unchecked Sendable {
 
         guard case let .selection(text, bundleID) = hit else { return nil }
         if let bundleID, blocklist.contains(bundleID) { return nil }
+        return text
+    }
 
+    /// Copy-on-select, step 1: the text a selection gesture produced, or nil.
+    /// The gesture counts only if it started on text (`pressPoint`), so a
+    /// drag of a window, a file or a slider, or a double click on a button,
+    /// never copies a selection that happens to exist elsewhere. Does not
+    /// touch the clipboard.
+    func selectionFromGesture(press pressPoint: CGPoint,
+                              release releasePoint: CGPoint) async -> String? {
+        let ax = self.ax
+        let onText = await Task.detached(priority: .userInitiated) {
+            ax.isTextTarget(at: pressPoint)
+        }.value
+        guard onText else { return nil }
+        return await selectedText(at: releasePoint)
+    }
+
+    /// Copy-on-select, step 2: writes `text` unless it is already on the
+    /// clipboard. Returns whether the clipboard changed.
+    func writeIfNew(_ text: String) -> SelectionOutcome? {
+        if pasteboard.readString() == text { return nil }
         pasteboard.write(text)
         return SelectionOutcome(text: text)
     }

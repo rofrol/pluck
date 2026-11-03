@@ -35,9 +35,15 @@ struct PrefsContent: View {
 
 private struct GeneralTab: View {
     @AppStorage("pluck.holdDelayMs") private var holdDelayMs: Int = 150
+    @AppStorage(AppShell.copyOnSelectKey) private var copyOnSelect: Bool = true
 
     var body: some View {
         PrefsSection("Gesture") {
+            PrefsRow("Copy on select",
+                     description: "Copy text as soon as you finish selecting it with a drag or a double click.") {
+                Toggle("", isOn: $copyOnSelect)
+                    .labelsHidden()
+            }
             PrefsRow("Hold delay",
                      description: "Time to hold the click on a selection before Pluck copies.") {
                 HStack(spacing: 10) {

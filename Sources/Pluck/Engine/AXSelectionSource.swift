@@ -20,6 +20,48 @@ enum AXHit: Sendable {
 
 protocol AXSelectionSource: AnyObject, Sendable {
     func readSelection(at screenPoint: CGPoint) -> AXHit
+    /// Whether a gesture that starts at this point acts on text (a text
+    /// view, field, web area or static text) rather than on a window title
+    /// bar, toolbar, file, slider, button or other control. Depends only on
+    /// what is under the point, not on when the selection changes.
+    func isTextTarget(at screenPoint: CGPoint) -> Bool
+}
+
+/// AX roles that hold selectable text.
+let axTextRoles: Set<String> = [
+    "AXTextArea", "AXTextField", "AXWebArea", "AXComboBox",
+]
+
+/// Text that counts only inside a text container: a window title is an
+/// AXStaticText right under AXWindow, and dragging it moves the window.
+let axTextContainerRoles: Set<String> = ["AXWebArea", "AXTextArea"]
+
+/// AX roles whose drag or double click is not a text selection. A walk up
+/// from the hit element stops at the first of these.
+let axNonTextRoles: Set<String> = [
+    "AXWindow", "AXToolbar", "AXButton", "AXCheckBox", "AXRadioButton",
+    "AXPopUpButton", "AXMenuButton", "AXSlider", "AXScrollBar", "AXSplitter",
+    "AXImage", "AXRow", "AXCell", "AXOutline", "AXList", "AXIncrementor",
+    "AXTabGroup", "AXMenuBar", "AXMenuBarItem", "AXDockItem", "AXDisclosureTriangle",
+]
+
+/// Classifies an AX ancestry, leaf first: true when a text role comes before
+/// any non-text role. Pure, so it is unit-tested apart from AX.
+func axRolesAreText(_ rolesLeafFirst: [String]) -> Bool {
+    var sawStaticText = false
+    for role in rolesLeafFirst {
+        if sawStaticText {
+            // Above a static text only a text container makes it selectable.
+            if axTextContainerRoles.contains(role) { return true }
+        } else if axTextRoles.contains(role) {
+            return true
+        } else if role == "AXStaticText" {
+            sawStaticText = true
+            continue
+        }
+        if axNonTextRoles.contains(role) { return false }
+    }
+    return false
 }
 
 final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
@@ -84,6 +126,36 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
             depth += 1
         }
         return .noSelection(bundleID: bundleID)
+    }
+
+    func isTextTarget(at screenPoint: CGPoint) -> Bool {
+        var element: AXUIElement?
+        let hit = AXUIElementCopyElementAtPosition(
+            AXUIElementCreateSystemWide(),
+            Float(screenPoint.x),
+            Float(screenPoint.y),
+            &element
+        )
+        guard hit == .success, let element else { return false }
+
+        var roles: [String] = []
+        var current: AXUIElement? = element
+        while let node = current, roles.count < 8 {
+            roles.append(Self.role(of: node) ?? "")
+            current = Self.parent(of: node)
+        }
+        return axRolesAreText(roles)
+    }
+
+    private static func role(of element: AXUIElement) -> String? {
+        var value: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(
+            element,
+            kAXRoleAttribute as CFString,
+            &value
+        )
+        guard result == .success else { return nil }
+        return value as? String
     }
 
     private static func readSelectedText(from element: AXUIElement) -> String? {

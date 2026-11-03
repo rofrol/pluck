@@ -28,8 +28,44 @@ final class AppShell: NSObject, NSWindowDelegate {
         let storedDelay = UserDefaults.standard.integer(forKey: "pluck.holdDelayMs")
         engine.holdDelayMs = storedDelay == 0 ? 150 : storedDelay
 
+        engine.copyOnSelect = UserDefaults.standard.object(forKey: Self.copyOnSelectKey) as? Bool ?? true
+
         engine.onHoldThreshold = { [weak self] point in
             self?.handleHold(at: point)
+        }
+        engine.onPress = { [weak self] point in
+            self?.handlePress(at: point)
+        }
+        engine.onSelectionEnded = { [weak self] press, release in
+            self?.handleSelectionEnded(press: press, release: release)
+        }
+    }
+
+    static let copyOnSelectKey = "pluck.copyOnSelect"
+
+    /// Bumped on every mouse-down. A copy-on-select read that finishes after
+    /// a newer press belongs to an obsolete gesture and is dropped, so a
+    /// slow AX read never overwrites the clipboard with an older selection.
+    private var gestureGeneration = 0
+
+    func handlePress(at point: CGPoint) {
+        gestureGeneration &+= 1
+        // Pick up a Preferences change on the next click.
+        engine.copyOnSelect = UserDefaults.standard.object(forKey: Self.copyOnSelectKey) as? Bool ?? true
+    }
+
+    func handleSelectionEnded(press: CGPoint, release: CGPoint) {
+        let generation = gestureGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            // Let the app publish the final selection to AX.
+            try? await Task.sleep(for: .milliseconds(60))
+            guard generation == self.gestureGeneration, self.engine.copyOnSelect,
+                  let text = await self.selectionReader.selectionFromGesture(press: press, release: release),
+                  generation == self.gestureGeneration,
+                  self.selectionReader.writeIfNew(text) != nil
+            else { return }
+            self.hud.show(near: release)
         }
     }
 

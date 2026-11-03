@@ -102,6 +102,77 @@ struct GestureStateMachineTests {
         #expect(up == nil)
     }
 
+    // MARK: Copy on select
+
+    @Test func releasingADragFiresSelectionCopy() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: CGPoint(x: 0, y: 0))
+        _ = sm.onMouseDragged(to: CGPoint(x: 50, y: 0))
+        let up = sm.onMouseUp(at: CGPoint(x: 50, y: 0))
+        #expect(up == .fireSelectionCopy(press: .zero, release: CGPoint(x: 50, y: 0), kind: .drag))
+    }
+
+    @Test func releasingADoubleClickFiresSelectionCopy() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: CGPoint(x: 3, y: 4), clickCount: 2)
+        let up = sm.onMouseUp(at: CGPoint(x: 3, y: 4))
+        #expect(up == .fireSelectionCopy(press: CGPoint(x: 3, y: 4), release: CGPoint(x: 3, y: 4), kind: .multiClick))
+    }
+
+    @Test func plainClickDoesNotFireSelectionCopy() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: CGPoint(x: 3, y: 4))
+        _ = sm.onMouseDragged(to: CGPoint(x: 5, y: 4)) // within slop
+        let up = sm.onMouseUp(at: CGPoint(x: 5, y: 4))
+        #expect(up == .cancelHoldTimer)
+    }
+
+    /// Double click held past the hold delay: the hold may read nothing
+    /// (the app selects on mouse-up), so the release still fires; the
+    /// reader skips text the hold already put on the clipboard.
+    @Test func releaseAfterHoldFiredStillFiresForDoubleClick() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: CGPoint(x: 3, y: 4), clickCount: 2)
+        #expect(sm.onHoldTimerFired() == .fireCopy(at: CGPoint(x: 3, y: 4)))
+        let up = sm.onMouseUp(at: CGPoint(x: 3, y: 4))
+        #expect(up == .fireSelectionCopy(press: CGPoint(x: 3, y: 4), release: CGPoint(x: 3, y: 4), kind: .multiClick))
+    }
+
+    @Test func holdThenDragStillFiresSelectionCopy() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: .zero)
+        _ = sm.onHoldTimerFired()
+        _ = sm.onMouseDragged(to: CGPoint(x: 50, y: 0))
+        let up = sm.onMouseUp(at: CGPoint(x: 50, y: 0))
+        #expect(up == .fireSelectionCopy(press: .zero, release: CGPoint(x: 50, y: 0), kind: .drag))
+    }
+
+    @Test func plainClickAfterHoldDoesNotFireSelectionCopy() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: .zero)
+        _ = sm.onHoldTimerFired()
+        #expect(sm.onMouseUp(at: .zero) == .cancelHoldTimer)
+    }
+
+    @Test func copyOnSelectOffKeepsHoldOnlyBehavior() {
+        var sm = GestureStateMachine()
+        sm.copyOnSelect = false
+        _ = sm.onMouseDown(at: .zero)
+        _ = sm.onMouseDragged(to: CGPoint(x: 50, y: 0))
+        #expect(sm.onMouseUp(at: CGPoint(x: 50, y: 0)) == .cancelHoldTimer)
+        _ = sm.onMouseDown(at: .zero, clickCount: 2)
+        #expect(sm.onMouseUp(at: .zero) == .cancelHoldTimer)
+    }
+
+    @Test func dragStateDoesNotLeakIntoNextClick() {
+        var sm = GestureStateMachine()
+        _ = sm.onMouseDown(at: .zero)
+        _ = sm.onMouseDragged(to: CGPoint(x: 50, y: 0))
+        _ = sm.onMouseUp(at: CGPoint(x: 50, y: 0))
+        _ = sm.onMouseDown(at: .zero)
+        #expect(sm.onMouseUp(at: .zero) == .cancelHoldTimer)
+    }
+
     @Test func dragFromIdleIsNoOp() {
         var sm = GestureStateMachine()
         let drag = sm.onMouseDragged(to: CGPoint(x: 1_000, y: 1_000))
