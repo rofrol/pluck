@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The "Copied 32 chars: first words of the text…" HUD — a static, dark
+/// The "Copied 32 chars: first words of the text…" HUD — a static, white
 /// capsule at the bottom right of the screen (the user,
 /// 2026-11-03: larger text, a more visible pill, nearer the right edge,
 /// with a preview). Panel alpha fades it in and out (see `HUDPresenter`).
@@ -29,10 +29,11 @@ struct CopiedPill: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 17, weight: .semibold))
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 17, weight: .light))
+                .foregroundStyle(Color(white: 0.45))
             Text(Self.label(for: text))
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 17))
                 .monospacedDigit()
             Text(Self.preview(of: text))
                 .font(.system(size: 17))
@@ -41,11 +42,13 @@ struct CopiedPill: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
-        .foregroundStyle(.white)
-        // A solid dark fill, not glass: tinted glass over a light window
-        // turned light grey and hid the white text (the user, 2026-11-03).
-        .background(Capsule().fill(.black.opacity(0.85)))
-        .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+        .foregroundStyle(.black)
+        // A solid white fill, not glass (tinted glass over a light window
+        // hid white text), with a thin black border, regular text and an
+        // outline icon: the user's pick of the rendered variants,
+        // 2026-11-03 ("A, without bold text; the icon is too strong").
+        .background(Capsule().fill(.white))
+        .overlay(Capsule().strokeBorder(.black, lineWidth: 1))
         .fixedSize()
     }
 }
@@ -53,5 +56,5 @@ struct CopiedPill: View {
 #Preview {
     CopiedPill(text: "Select text in any app, press down on the selection, keep the mouse still")
         .padding(40)
-        .background(Color.white)
+        .background(Color(white: 0.9))
 }
