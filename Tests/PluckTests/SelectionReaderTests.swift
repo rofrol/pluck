@@ -125,6 +125,25 @@ struct SelectionReaderTests {
         #expect(!axRolesAreText([]))
     }
 
+    /// Roles logged from Chrome on 2026-11-03: a heading inside a `<ul>`.
+    @Test func webTextInsideListsAndTablesIsText() {
+        #expect(axRolesAreText(["AXStaticText", "AXHeading", "AXGroup", "AXList", "AXGroup",
+                                "AXWebArea", "AXScrollArea", "AXGroup", "AXWindow"]))
+        #expect(axRolesAreText(["AXGroup", "AXList", "AXGroup", "AXWebArea", "AXScrollArea", "AXWindow"]))
+        #expect(axRolesAreText(["AXStaticText", "AXCell", "AXRow", "AXTable", "AXWebArea"]))
+    }
+
+    @Test func controlsInsideWebContentAreNotText() {
+        #expect(!axRolesAreText(["AXButton", "AXList", "AXWebArea", "AXWindow"]))
+        #expect(!axRolesAreText(["AXImage", "AXGroup", "AXWebArea", "AXWindow"]))
+    }
+
+    /// Native lists and tables (a Finder file list) still stop the walk.
+    @Test func nativeListsAndTablesAreNotText() {
+        #expect(!axRolesAreText(["AXStaticText", "AXCell", "AXRow", "AXOutline", "AXScrollArea", "AXWindow"]))
+        #expect(!axRolesAreText(["AXGroup", "AXList", "AXScrollArea", "AXWindow"]))
+    }
+
     /// A window title is an AXStaticText right under AXWindow; dragging it
     /// moves the window.
     @Test func staticTextOutsideATextContainerIsNotText() {

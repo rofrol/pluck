@@ -1,5 +1,12 @@
 import AppKit
 import ApplicationServices
+import os
+
+/// Diagnostics, at debug level (not persisted): run
+/// `log stream --level debug --predicate 'subsystem == "md.getdesign.pluck"'`
+/// and repeat the gesture.
+/// Logs AX roles and result codes, never the selected text itself.
+let pluckLog = Logger(subsystem: "md.getdesign.pluck", category: "ax")
 
 /// Outcome of probing AX for selected text at a screen point. Any AX error
 /// collapses to `.noSelection` — the alternative (synthesized Cmd+C) made
@@ -36,18 +43,31 @@ let axTextRoles: Set<String> = [
 /// AXStaticText right under AXWindow, and dragging it moves the window.
 let axTextContainerRoles: Set<String> = ["AXWebArea", "AXTextArea"]
 
-/// AX roles whose drag or double click is not a text selection. A walk up
-/// from the hit element stops at the first of these.
+/// AX roles whose drag or double click is not a text selection: controls
+/// and window chrome. A walk up from the hit element stops at the first.
 let axNonTextRoles: Set<String> = [
-    "AXWindow", "AXToolbar", "AXButton", "AXCheckBox", "AXRadioButton",
+    "AXWindow", "AXButton", "AXCheckBox", "AXRadioButton",
     "AXPopUpButton", "AXMenuButton", "AXSlider", "AXScrollBar", "AXSplitter",
-    "AXImage", "AXRow", "AXCell", "AXOutline", "AXList", "AXIncrementor",
-    "AXTabGroup", "AXMenuBar", "AXMenuBarItem", "AXDockItem", "AXDisclosureTriangle",
+    "AXImage", "AXIncrementor", "AXMenuBar", "AXMenuBarItem", "AXDockItem",
+    "AXDisclosureTriangle",
+]
+
+/// Container roles that stop the walk in native apps (a Finder file list, a
+/// table, a toolbar) but are plain document structure inside web content,
+/// where a page built from `<ul>` or `<table>` puts AXList, AXRow and
+/// AXCell between a paragraph and its AXWebArea.
+let axStructuralRoles: Set<String> = [
+    "AXList", "AXRow", "AXCell", "AXOutline", "AXTabGroup", "AXToolbar",
 ]
 
 /// Classifies an AX ancestry, leaf first: true when a text role comes before
 /// any non-text role. Pure, so it is unit-tested apart from AX.
 func axRolesAreText(_ rolesLeafFirst: [String]) -> Bool {
+    // Roles between the leaf and the first AXWindow; only these belong to
+    // the window that was clicked.
+    let inWindow = rolesLeafFirst.prefix { $0 != "AXWindow" }
+    let insideWebArea = inWindow.contains("AXWebArea")
+
     var sawStaticText = false
     for role in rolesLeafFirst {
         if sawStaticText {
@@ -60,6 +80,7 @@ func axRolesAreText(_ rolesLeafFirst: [String]) -> Bool {
             continue
         }
         if axNonTextRoles.contains(role) { return false }
+        if axStructuralRoles.contains(role), !insideWebArea { return false }
     }
     return false
 }
@@ -90,11 +111,15 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
             kAXFocusedUIElementAttribute as CFString,
             &focused
         )
-        guard focusResult == .success, let focused else { return nil }
+        guard focusResult == .success, let focused else {
+            pluckLog.debug("no focused element, AX error \(focusResult.rawValue, privacy: .public)")
+            return nil
+        }
         let element = focused as! AXUIElement
         let bundleID = Self.bundleID(of: element)
 
         let text = Self.readSelectedText(from: element)
+        pluckLog.debug("focused role=\(Self.role(of: element) ?? "nil", privacy: .public) app=\(bundleID ?? "nil", privacy: .public) selectedLength=\(text?.count ?? -1, privacy: .public)")
         if let text, !text.isEmpty {
             return .selection(text, bundleID: bundleID)
         }
@@ -149,7 +174,9 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
             if role == "AXWindow" { break }
             current = Self.parent(of: node)
         }
-        return axRolesAreText(roles)
+        let isText = axRolesAreText(roles)
+        pluckLog.debug("press target text=\(isText, privacy: .public) roles=\(roles.joined(separator: ">"), privacy: .public)")
+        return isText
     }
 
     private static func role(of element: AXUIElement) -> String? {

@@ -19,6 +19,16 @@ All notable changes to Pluck are documented here. Pluck follows
   selections through `AXSelectedTextMarkerRange`; the ancestor walk goes
   up to 40 levels, since web text nests deeply.
 
+- Debug-level AX diagnostics (subsystem `md.getdesign.pluck`): roles
+  under the press point, the focused element, the AXManualAccessibility
+  result. No selected text is logged.
+
+### Fixed
+
+- Chrome: text inside lists and tables (`<ul>`, `<table>`) was rejected,
+  because AXList/AXRow/AXCell stopped the walk before AXWebArea. Inside
+  web content they are now structure, not controls.
+
 ### Changed
 
 - Finder is no longer on the default blocklist (the upstream entry

@@ -60,6 +60,8 @@ final class AppShell: NSObject, NSWindowDelegate {
 
     func handleSelectionEnded(press: CGPoint, release: CGPoint) {
         let generation = gestureGeneration
+        let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        pluckLog.debug("selection gesture ended app=\(app, privacy: .public)")
         Task { @MainActor [weak self] in
             guard let self else { return }
             // Let the app publish the final selection to AX.

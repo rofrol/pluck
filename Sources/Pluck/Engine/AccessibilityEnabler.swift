@@ -61,6 +61,7 @@ final class AccessibilityEnabler {
                 AXUIElementCreateApplication(pid),
                 "AXManualAccessibility" as CFString,
                 kCFBooleanTrue)
+            pluckLog.debug("AXManualAccessibility pid=\(pid, privacy: .public) result=\(result.rawValue, privacy: .public)")
             await MainActor.run {
                 guard let self else { return }
                 self.inFlight.remove(pid)

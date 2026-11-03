@@ -66,6 +66,13 @@ click and release, and the text is on your clipboard.
 - A double/triple click copies the word or line it selected.
 - Text already on the clipboard is not written again; the pill shows only
   when the clipboard changed.
+- Text in web pages counts even inside lists and tables (AXList, AXRow,
+  AXCell under an AXWebArea); in native apps those roles are file lists
+  and tables, and a gesture on them copies nothing.
+- When a gesture does not copy, watch what Pluck sees:
+  `log stream --level debug --predicate 'subsystem == "md.getdesign.pluck"'`
+  logs the AX roles under the press point and the focused element (never
+  the selected text).
 - Chromium browsers (Chrome, Edge, Brave, Arc) and Electron apps build
   their web-content accessibility tree only on request. Pluck sets
   `AXManualAccessibility` on each app when it becomes active, and reads
