@@ -61,8 +61,13 @@ click and release, and the text is on your clipboard.
 - A double/triple click copies the word or line it selected.
 - Text already on the clipboard is not written again; the pill shows only
   when the clipboard changed.
-- Apps that do not expose their selection through Accessibility (many
-  Electron apps) are not covered, as with the hold gesture.
+- Chromium browsers (Chrome, Edge, Brave, Arc) and Electron apps build
+  their web-content accessibility tree only on request. Pluck sets
+  `AXManualAccessibility` on each app when it becomes active, and reads
+  web selections through `AXSelectedTextMarkerRange` when
+  `AXSelectedText` is empty. The tree costs those apps memory and CPU for
+  as long as they run, so it is not requested for blocklisted apps or
+  while Pluck is paused.
 
 ## How it decides to fire (hold gesture)
 
@@ -88,7 +93,8 @@ Menu bar → **Preferences…**
 - **Launch at login** — via `SMAppService`.
 - **Blocklist** — apps where Pluck stays silent. Ships with sane defaults
   (Figma, Sketch, Photoshop, Illustrator, Blender, Unity, Unreal, Excel,
-  Numbers, Finder, Xcode Interface Builder).
+  Numbers, Xcode Interface Builder). This fork leaves Finder out, so text
+  selected while renaming a file is copied.
 
 ## Develop
 

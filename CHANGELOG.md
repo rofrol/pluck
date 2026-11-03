@@ -14,6 +14,15 @@ All notable changes to Pluck are documented here. Pluck follows
   double-clicking a button copies nothing. Text already on the clipboard is not written again, so the
   pill shows only when the clipboard really changed. The hold gesture
   still works.
+- Chrome and other Chromium/Electron apps: Pluck asks each activated app
+  for its accessibility tree (`AXManualAccessibility`) and reads web
+  selections through `AXSelectedTextMarkerRange`; the ancestor walk goes
+  up to 40 levels, since web text nests deeply.
+
+### Changed
+
+- Finder is no longer on the default blocklist (the upstream entry
+  `com.apple.Finder` never matched `com.apple.finder` anyway).
 
 ## [0.1.0] — 2026-04-19
 

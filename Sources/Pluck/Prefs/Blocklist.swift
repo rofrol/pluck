@@ -15,7 +15,10 @@ final class Blocklist: @unchecked Sendable {
         "com.epicgames.UnrealEditor",
         "com.microsoft.Excel",
         "com.apple.iWork.Numbers",
-        "com.apple.Finder",
+        // Finder is not listed: renaming a file is a text selection worth
+        // copying, and dragging files never copies (the gesture must start
+        // on text). Upstream listed "com.apple.Finder", which never matched
+        // the real "com.apple.finder".
     ]
 
     private let defaults: UserDefaults

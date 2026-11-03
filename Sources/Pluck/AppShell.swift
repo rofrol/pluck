@@ -9,6 +9,7 @@ final class AppShell: NSObject, NSWindowDelegate {
     let selectionReader: SelectionReader
     let hud: HUDPresenter
     let onboardingState: OnboardingState
+    let accessibilityEnabler: AccessibilityEnabler
     private var onboardingWindow: NSWindow?
 
     var isPaused: Bool {
@@ -19,10 +20,13 @@ final class AppShell: NSObject, NSWindowDelegate {
     override init() {
         let blocklist = Blocklist()
         self.blocklist = blocklist
-        self.engine = GestureEngine()
+        let engine = GestureEngine()
+        self.engine = engine
         self.selectionReader = SelectionReader(blocklist: blocklist)
         self.hud = HUDPresenter()
         self.onboardingState = OnboardingState()
+        self.accessibilityEnabler = AccessibilityEnabler(blocklist: blocklist,
+                                                         isPaused: { engine.isPaused })
         super.init()
 
         let storedDelay = UserDefaults.standard.integer(forKey: "pluck.holdDelayMs")
@@ -151,6 +155,7 @@ final class AppShell: NSObject, NSWindowDelegate {
         }
         do {
             try engine.start()
+            accessibilityEnabler.start()
         } catch {
             NSLog("Pluck: failed to start event tap: \(error)")
         }

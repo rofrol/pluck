@@ -118,10 +118,11 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
         // attribute lives on an ancestor (text view, web area).
         var current: AXUIElement? = element
         var depth = 0
-        while let node = current, depth < 8 {
+        while let node = current, depth < Self.maxAncestorWalk {
             if let text = Self.readSelectedText(from: node), !text.isEmpty {
                 return .selection(text, bundleID: bundleID)
             }
+            if Self.role(of: node) == "AXWindow" { break }
             current = Self.parent(of: node)
             depth += 1
         }
@@ -138,10 +139,14 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
         )
         guard hit == .success, let element else { return false }
 
+        // Web content nests text deeply (AXStaticText in many AXGroups
+        // under AXWebArea), so the walk goes up to the window, bounded.
         var roles: [String] = []
         var current: AXUIElement? = element
-        while let node = current, roles.count < 8 {
-            roles.append(Self.role(of: node) ?? "")
+        while let node = current, roles.count < Self.maxAncestorWalk {
+            let role = Self.role(of: node) ?? ""
+            roles.append(role)
+            if role == "AXWindow" { break }
             current = Self.parent(of: node)
         }
         return axRolesAreText(roles)
@@ -158,6 +163,11 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
         return value as? String
     }
 
+    static let maxAncestorWalk = 40
+
+    /// `kAXSelectedTextAttribute`, or, when that is empty (web content in
+    /// some Chromium builds and elements), the string for
+    /// `AXSelectedTextMarkerRange`.
     private static func readSelectedText(from element: AXUIElement) -> String? {
         var value: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(
@@ -165,7 +175,27 @@ final class SystemAXSelectionSource: AXSelectionSource, @unchecked Sendable {
             kAXSelectedTextAttribute as CFString,
             &value
         )
-        guard result == .success, let value else { return nil }
+        if result == .success, let text = value as? String, !text.isEmpty {
+            return text
+        }
+        return readTextMarkerSelection(from: element)
+    }
+
+    private static func readTextMarkerSelection(from element: AXUIElement) -> String? {
+        var range: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            "AXSelectedTextMarkerRange" as CFString,
+            &range
+        ) == .success, let range else { return nil }
+
+        var value: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element,
+            "AXStringForTextMarkerRange" as CFString,
+            range,
+            &value
+        ) == .success else { return nil }
         return value as? String
     }
 
