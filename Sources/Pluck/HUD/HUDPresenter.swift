@@ -12,13 +12,12 @@ final class HUDPresenter {
     private let fadeOut: TimeInterval = 0.30
 
     /// `anchor` is used only to pick the screen containing the cursor;
-    /// the pill itself sits at bottom-center of that screen, matching
-    /// macOS system HUDs.
-    func show(near anchor: CGPoint, characterCount: Int) {
+    /// the pill itself sits at the bottom right of that screen.
+    func show(near anchor: CGPoint, text: String) {
         let panel = ensurePanel()
         // Resize to the new label before positioning: the count changes
         // its width.
-        host?.rootView = CopiedPill(characterCount: characterCount)
+        host?.rootView = CopiedPill(text: text)
         panel.contentView?.layoutSubtreeIfNeeded()
         let pillSize = panel.contentView?.fittingSize
             ?? CGSize(width: 100, height: 34)
@@ -66,7 +65,7 @@ final class HUDPresenter {
     private func ensurePanel() -> NSPanel {
         if let panel { return panel }
 
-        let host = NSHostingController(rootView: CopiedPill(characterCount: 0))
+        let host = NSHostingController(rootView: CopiedPill(text: ""))
         host.sizingOptions = [.preferredContentSize]
         host.view.setFrameSize(host.view.fittingSize)
 

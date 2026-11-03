@@ -1,6 +1,6 @@
 import AppKit
 
-/// Shows the "Copied N characters" pill whenever another app puts text on
+/// Shows the "Copied N chars: preview…" pill whenever another app puts text on
 /// the general pasteboard: Cmd+C in Chrome, a menu's Copy. The app that
 /// copies keeps doing the copying. Pluck's own writes are not observed
 /// here: their caller shows the pill and calls `noteOwnWrite()`.
@@ -24,9 +24,9 @@ final class ClipboardWatcher {
     private var timer: Timer?
     private var lastChangeCount = NSPasteboard.general.changeCount
     private let isPaused: () -> Bool
-    private let onCopy: (_ characterCount: Int) -> Void
+    private let onCopy: (_ text: String) -> Void
 
-    init(isPaused: @escaping () -> Bool, onCopy: @escaping (_ characterCount: Int) -> Void) {
+    init(isPaused: @escaping () -> Bool, onCopy: @escaping (_ text: String) -> Void) {
         self.isPaused = isPaused
         self.onCopy = onCopy
     }
@@ -55,24 +55,24 @@ final class ClipboardWatcher {
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
         guard !isPaused() else { return }
-        if let count = Self.copiedCharacterCount(
+        if let text = Self.copiedText(
             types: pasteboard.types ?? [],
             readString: { pasteboard.string(forType: .string) }
         ) {
-            onCopy(count)
+            onCopy(text)
         }
     }
 
-    /// The number of characters (grapheme clusters) a copy put on the
-    /// clipboard, or nil when it holds no text, an empty string, or a
+    /// The text a copy put on the clipboard, or nil when it holds no
+    /// text, an empty string, or a
     /// concealed, transient or generated item. `readString` runs only after
     /// the types allow it, so a secret is never read. Pure, for tests.
-    nonisolated static func copiedCharacterCount(types: [NSPasteboard.PasteboardType],
-                                     readString: () -> String?) -> Int? {
+    nonisolated static func copiedText(types: [NSPasteboard.PasteboardType],
+                                       readString: () -> String?) -> String? {
         guard types.contains(.string),
               skippedTypes.isDisjoint(with: types),
               let text = readString(), !text.isEmpty
         else { return nil }
-        return text.count
+        return text
     }
 }

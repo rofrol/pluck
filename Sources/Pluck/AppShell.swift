@@ -40,8 +40,8 @@ final class AppShell: NSObject, NSWindowDelegate {
         let hud = self.hud
         self.clipboardWatcher = ClipboardWatcher(
             isPaused: { engine.isPaused },
-            onCopy: { count in
-                hud.show(near: CGEvent(source: nil)?.location ?? .zero, characterCount: count)
+            onCopy: { text in
+                hud.show(near: CGEvent(source: nil)?.location ?? .zero, text: text)
             })
         super.init()
 
@@ -88,7 +88,7 @@ final class AppShell: NSObject, NSWindowDelegate {
                   self.selectionReader.writeIfNew(text) != nil
             else { return }
             self.clipboardWatcher.noteOwnWrite()
-            self.hud.show(near: release, characterCount: text.count)
+            self.hud.show(near: release, text: text)
         }
     }
 
@@ -133,7 +133,7 @@ final class AppShell: NSObject, NSWindowDelegate {
             }
             if let outcome = await self.selectionReader.read(at: point) {
                 self.clipboardWatcher.noteOwnWrite()
-                self.hud.show(near: point, characterCount: outcome.text.count)
+                self.hud.show(near: point, text: outcome.text)
             }
         }
     }
